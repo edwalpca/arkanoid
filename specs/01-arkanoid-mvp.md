@@ -1,6 +1,6 @@
 # SPEC 01 — MVP de Arkanoid jugable en el navegador, portable en un solo archivo
 
-> **Status:** Aprobado
+> **Status:** Implementado
 > **Depends on:** —
 > **Date:** 2026-09-02
 > **Objective:** Construir un MVP jugable de Arkanoid en TypeScript vanilla (sin frameworks), compilado a un único `dist/game.js` y cargado desde un `index.html` centrado en un canvas fijo de 480x640, con pala, pelota, bloques, puntuación, vidas, 3 niveles y game over/victoria.
@@ -104,20 +104,20 @@ Convenciones:
 
 ## Acceptance criteria
 
-- [ ] `index.html` abierto vía servidor local (`python3 -m http.server`) carga el juego sin errores en la consola.
-- [ ] La pala se mueve con las flechas izquierda/derecha y no sale del canvas.
-- [ ] La pelota rebota correctamente en las paredes laterales, la pared superior y la pala.
-- [ ] El ángulo de rebote contra la pala cambia según el punto de impacto.
-- [ ] Golpear un bloque lo destruye, muestra la animación de explosión y suma sus puntos al score.
-- [ ] El score y las vidas se muestran en pantalla y se actualizan en tiempo real.
-- [ ] Perder una vida ocurre exactamente cuando la pelota cruza el borde inferior del canvas sin tocar la pala.
-- [ ] Al llegar a 0 vidas se muestra la pantalla de Game Over con el score final y una opción para reiniciar desde el nivel 1.
-- [ ] Al romper todos los bloques de un nivel se carga el siguiente nivel conservando score y vidas.
-- [ ] Al completar el nivel 3 se muestra la pantalla de victoria (Win), distinta de Game Over.
-- [ ] La tecla `P` pausa y reanuda el juego durante la partida.
-- [ ] Se reproduce `ball-bounce.mp3` en cada rebote y `break-sound.mp3` en cada rotura de bloque.
-- [ ] El proyecto compila con `tsc` sin errores y genera un único `dist/game.js`.
-- [ ] No se usa ningún framework, librería externa ni bundler.
+- [x] `index.html` abierto vía servidor local (`python3 -m http.server`) carga el juego sin errores en la consola.
+- [x] La pala se mueve con las flechas izquierda/derecha y no sale del canvas.
+- [x] La pelota rebota correctamente en las paredes laterales, la pared superior y la pala.
+- [x] El ángulo de rebote contra la pala cambia según el punto de impacto.
+- [x] Golpear un bloque lo destruye, muestra la animación de explosión y suma sus puntos al score.
+- [x] El score y las vidas se muestran en pantalla y se actualizan en tiempo real.
+- [x] Perder una vida ocurre exactamente cuando la pelota cruza el borde inferior del canvas sin tocar la pala.
+- [x] Al llegar a 0 vidas se muestra la pantalla de Game Over con el score final y una opción para reiniciar desde el nivel 1.
+- [x] Al romper todos los bloques de un nivel se carga el siguiente nivel conservando score y vidas.
+- [x] Al completar el nivel 3 se muestra la pantalla de victoria (Win), distinta de Game Over.
+- [x] La tecla `P` pausa y reanuda el juego durante la partida.
+- [x] Se reproduce `ball-bounce.mp3` en cada rebote y `break-sound.mp3` en cada rotura de bloque.
+- [x] El proyecto compila con `tsc` sin errores y genera un único `dist/game.js`.
+- [x] No se usa ningún framework, librería externa ni bundler.
 
 ---
 

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arkanoid</title>
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #05070c;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #game {
+      background: #0b0f1a;
+      image-rendering: pixelated;
+      box-shadow: 0 0 24px rgba(0, 0, 0, 0.6);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game" width="480" height="640"></canvas>
+
+  <script src="assets/spritesheet.js"></script>
+  <script src="dist/game.js"></script>
+</body>
+</html>

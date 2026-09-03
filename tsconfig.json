@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "es2017",
+    "lib": ["es2017", "dom"],
+    "module": "none",
+    "outFile": "dist/game.js",
+    "strict": true,
+    "noImplicitAny": true,
+    "removeComments": true,
+    "newLine": "lf"
+  },
+  "files": [
+    "src/constants.ts",
+    "src/types.ts",
+    "src/audio.ts",
+    "src/paddle.ts",
+    "src/ball.ts",
+    "src/blocks.ts",
+    "src/levels.ts",
+    "src/game.ts",
+    "src/main.ts"
+  ]
+}

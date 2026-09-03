@@ -1,0 +1,13 @@
+{
+  "name": "arkanoid",
+  "private": true,
+  "version": "1.0.0",
+  "description": "MVP de Arkanoid en TypeScript vanilla, un solo archivo .html portable",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}
