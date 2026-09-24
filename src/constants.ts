@@ -59,3 +59,6 @@ const BALL_TRAIL_LENGTH = 8;
 const SPARK_PARTICLE_COUNT = 10;
 const SPARK_DURATION = 350;
 const SCORE_POPUP_DURATION = 700;
+
+// Configuración de controles táctiles
+const TOUCH_PADDLE_SMOOTHING = false;

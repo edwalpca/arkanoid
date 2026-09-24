@@ -67,6 +67,13 @@ interface BallTrailPoint {
   y: number;
 }
 
+// Estado del puntero táctil para el arrastre de la pala
+interface TouchInputState {
+  isActive: boolean;
+  touchId: number | null;
+  targetCanvasX: number;
+}
+
 // Ambient declarations for assets/spritesheet.js, cargado como <script> plano
 // antes de dist/game.js (ver index.html). No es un módulo TS, solo expone
 // estas globales en tiempo de ejecución.

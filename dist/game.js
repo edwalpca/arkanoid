@@ -41,6 +41,7 @@ const BALL_TRAIL_LENGTH = 8;
 const SPARK_PARTICLE_COUNT = 10;
 const SPARK_DURATION = 350;
 const SCORE_POPUP_DURATION = 700;
+const TOUCH_PADDLE_SMOOTHING = false;
 const bounceSound = new Audio('assets/sounds/ball-bounce.mp3');
 const breakSound = new Audio('assets/sounds/break-sound.mp3');
 function playBounce() {
@@ -180,6 +181,10 @@ function updatePaddle(paddle) {
         paddle.x -= paddle.speed;
     if (keysDown.has('ArrowRight'))
         paddle.x += paddle.speed;
+    paddle.x = Math.max(WALL_THICKNESS, Math.min(CANVAS_WIDTH - WALL_THICKNESS - paddle.width, paddle.x));
+}
+function movePaddleTo(paddle, targetCanvasX) {
+    paddle.x = targetCanvasX - paddle.width / 2;
     paddle.x = Math.max(WALL_THICKNESS, Math.min(CANVAS_WIDTH - WALL_THICKNESS - paddle.width, paddle.x));
 }
 function drawPaddle(ctx, paddle) {
@@ -405,8 +410,16 @@ function restartGame() {
     state.lives = LIVES_START;
     resetLevel(0);
 }
+let lastConfirmTime = 0;
 function handleConfirmAction() {
+    const now = performance.now();
+    if (now - lastConfirmTime < 250)
+        return;
+    lastConfirmTime = now;
     if (state.screen === 'start') {
+        state.screen = 'playing';
+    }
+    else if (state.screen === 'paused') {
         state.screen = 'playing';
     }
     else if (state.screen === 'gameover' || state.screen === 'win') {
@@ -421,6 +434,80 @@ function handlePauseAction() {
         state.screen = 'playing';
     }
 }
+function initTouchInput() {
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchMoved = false;
+    const getCanvasX = (clientX) => {
+        const rect = canvas.getBoundingClientRect();
+        if (rect.width === 0)
+            return CANVAS_WIDTH / 2;
+        const scaleX = CANVAS_WIDTH / rect.width;
+        return (clientX - rect.left) * scaleX;
+    };
+    canvas.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 0)
+            return;
+        e.preventDefault();
+        const touch = e.touches[0];
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+        touchMoved = false;
+        if (state.screen === 'playing') {
+            movePaddleTo(paddle, getCanvasX(touch.clientX));
+        }
+    }, { passive: false });
+    canvas.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 0)
+            return;
+        e.preventDefault();
+        const touch = e.touches[0];
+        if (Math.hypot(touch.clientX - touchStartX, touch.clientY - touchStartY) > 8) {
+            touchMoved = true;
+        }
+        if (state.screen === 'playing') {
+            movePaddleTo(paddle, getCanvasX(touch.clientX));
+        }
+    }, { passive: false });
+    canvas.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        if (!touchMoved || state.screen !== 'playing') {
+            handleConfirmAction();
+        }
+    }, { passive: false });
+    canvas.addEventListener('touchcancel', (e) => {
+        e.preventDefault();
+    }, { passive: false });
+    let isPointerDown = false;
+    canvas.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'mouse') {
+            isPointerDown = true;
+            if (state.screen === 'playing') {
+                movePaddleTo(paddle, getCanvasX(e.clientX));
+            }
+        }
+    });
+    window.addEventListener('pointermove', (e) => {
+        if (isPointerDown && e.pointerType === 'mouse' && state.screen === 'playing') {
+            movePaddleTo(paddle, getCanvasX(e.clientX));
+        }
+    });
+    window.addEventListener('pointerup', (e) => {
+        if (e.pointerType === 'mouse') {
+            isPointerDown = false;
+        }
+    });
+    const pauseBtn = document.getElementById('touch-pause-btn');
+    if (pauseBtn) {
+        const triggerPause = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handlePauseAction();
+        };
+        pauseBtn.addEventListener('click', triggerPause);
+        pauseBtn.addEventListener('touchend', triggerPause);
+    }
+}
 function initGameInput() {
     window.addEventListener('keydown', (e) => {
         if (e.key === 'p' || e.key === 'P') {
@@ -431,6 +518,7 @@ function initGameInput() {
         }
     });
     canvas.addEventListener('click', handleConfirmAction);
+    initTouchInput();
 }
 function updateGame(now, deltaMs) {
     updateParticles(deltaMs);
@@ -607,11 +695,11 @@ function drawStartScreen(now) {
     ctx.shadowColor = `rgba(0, 240, 255, ${pulse})`;
     ctx.fillStyle = `rgba(0, 240, 255, ${pulse})`;
     ctx.font = 'bold 13px Orbitron, monospace, sans-serif';
-    ctx.fillText('▶ PRESIONA ENTER PARA JUGAR ◀', CANVAS_WIDTH / 2, cardY + 40);
+    ctx.fillText('▶ ENTER O TOCA PARA JUGAR ◀', CANVAS_WIDTH / 2, cardY + 40);
     ctx.shadowBlur = 0;
     ctx.fillStyle = '#94a3b8';
     ctx.font = '11px Orbitron, sans-serif';
-    ctx.fillText('( o haz click en la pantalla )', CANVAS_WIDTH / 2, cardY + 68);
+    ctx.fillText('( click o toque en la pantalla )', CANVAS_WIDTH / 2, cardY + 68);
     ctx.strokeStyle = 'rgba(148, 163, 184, 0.2)';
     ctx.beginPath();
     ctx.moveTo(cardX + 30, cardY + 95);
@@ -619,8 +707,8 @@ function drawStartScreen(now) {
     ctx.stroke();
     ctx.fillStyle = '#e2e8f0';
     ctx.font = '11px Orbitron, sans-serif';
-    ctx.fillText('Flechas [ ← / → ] :  Mover la pala', CANVAS_WIDTH / 2, cardY + 120);
-    ctx.fillText('Tecla [ P ] :  Pausar partida', CANVAS_WIDTH / 2, cardY + 144);
+    ctx.fillText('[ ← / → ] o deslizar : Mover la pala', CANVAS_WIDTH / 2, cardY + 120);
+    ctx.fillText('Tecla [ P ] o botón ⏸ : Pausa', CANVAS_WIDTH / 2, cardY + 144);
     ctx.restore();
 }
 function drawPauseScreen() {
@@ -646,7 +734,7 @@ function drawPauseScreen() {
     ctx.shadowBlur = 0;
     ctx.font = '12px Orbitron, sans-serif';
     ctx.fillStyle = '#e2e8f0';
-    ctx.fillText('Presiona P para continuar', CANVAS_WIDTH / 2, cardY + 90);
+    ctx.fillText('Presiona P o toca para continuar', CANVAS_WIDTH / 2, cardY + 90);
     ctx.restore();
 }
 function drawGameOverScreen(now) {
@@ -678,7 +766,7 @@ function drawGameOverScreen(now) {
     const pulse = 0.5 + 0.5 * Math.sin(now / 200);
     ctx.fillStyle = `rgba(255, 0, 85, ${pulse})`;
     ctx.font = 'bold 12px Orbitron, monospace, sans-serif';
-    ctx.fillText('▶ ENTER O CLICK PARA REINICIAR', CANVAS_WIDTH / 2, cardY + 115);
+    ctx.fillText('▶ ENTER O TOCA PARA REINICIAR', CANVAS_WIDTH / 2, cardY + 115);
     ctx.restore();
 }
 function drawWinScreen(now) {
@@ -712,7 +800,7 @@ function drawWinScreen(now) {
     const pulse = 0.5 + 0.5 * Math.sin(now / 200);
     ctx.fillStyle = `rgba(0, 255, 102, ${pulse})`;
     ctx.font = 'bold 12px Orbitron, monospace, sans-serif';
-    ctx.fillText('▶ ENTER O CLICK PARA REINICIAR', CANVAS_WIDTH / 2, cardY + 120);
+    ctx.fillText('▶ ENTER O TOCA PARA REINICIAR', CANVAS_WIDTH / 2, cardY + 120);
     ctx.restore();
 }
 function renderGame(now) {

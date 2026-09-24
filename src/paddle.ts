@@ -24,6 +24,11 @@ function updatePaddle( paddle: Paddle ): void {
   paddle.x = Math.max( WALL_THICKNESS, Math.min( CANVAS_WIDTH - WALL_THICKNESS - paddle.width, paddle.x ) );
 }
 
+function movePaddleTo( paddle: Paddle, targetCanvasX: number ): void {
+  paddle.x = targetCanvasX - paddle.width / 2;
+  paddle.x = Math.max( WALL_THICKNESS, Math.min( CANVAS_WIDTH - WALL_THICKNESS - paddle.width, paddle.x ) );
+}
+
 function drawPaddle( ctx: CanvasRenderingContext2D, paddle: Paddle ): void {
   ctx.save();
   ctx.shadowColor = '#00f0ff';
