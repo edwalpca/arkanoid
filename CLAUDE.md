@@ -11,9 +11,35 @@ programación, salvo que el usuario indique lo contrario.
 
 ## Estado del proyecto
 
-Este repositorio actualmente es una hoja en blanco: solo contiene `README.md` (la especificación) y
-`assets.zip` (arte/audio del juego). No existe todavía código fuente, configuración de build ni manifiesto
-de dependencias. La tarea es construir desde cero el juego descrito a continuación.
+El MVP jugable ya está implementado (ver `specs/01-arkanoid-mvp.md`, estado Implementado) y se le
+agregó un ajuste visual al HUD (ver `specs/02-hud-rounded-box.md`). La carpeta `specs/` es la fuente
+de verdad histórica de qué se decidió y por qué en cada iteración; antes de asumir el estado del
+proyecto, revisar ahí en vez de inferirlo solo del código.
+
+Estructura actual:
+
+```
+index.html              # único punto de entrada, canvas 480x640
+tsconfig.json           # compilación tsc sin bundler → dist/game.js
+src/
+  constants.ts          # dimensiones, velocidades, puntos por color, estilo del HUD
+  types.ts              # Screen, BlockColor, GameState, Paddle, Ball, Block
+  audio.ts              # playBounce(), playBreak()
+  paddle.ts             # dibujo y movimiento de la pala
+  ball.ts               # dibujo, movimiento y rebotes de la pelota
+  blocks.ts             # construcción de bloques, dibujo, colisión y rotura
+  levels.ts             # 3 layouts de bloques hardcodeados
+  game.ts               # estado global, bucle de update/render, HUD, pantallas
+  main.ts               # punto de entrada, arranca el game loop
+dist/game.js            # salida compilada de tsc, cargada por index.html
+assets/                 # spritesheet, spritesheet.js (loader) y sonidos
+specs/                  # historial de specs (01: MVP, 02: box redondeado del HUD)
+```
+
+Funcionalidades implementadas: pala, pelota con rebotes y ángulo variable, bloques con animación de
+explosión, puntuación por color de bloque, vidas, 3 niveles, pantallas start/playing/paused/gameover/win,
+sonido de rebote y rotura, y un HUD (score/vidas/nivel) dibujado en una fila dentro de un box con
+fondo oscuro semitransparente y esquinas redondeadas en la esquina superior izquierda del canvas.
 
 ## Requisitos del proyecto (del README.md, en español)
 
