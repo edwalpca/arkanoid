@@ -28,6 +28,12 @@ function breakBlock( block: Block, now: number ): void {
   block.exploding = true;
   block.explosionStart = now;
   playBreak();
+
+  const neonColor = NEON_COLORS[ block.color ] || '#00f0ff';
+  const centerX = block.x + block.width / 2;
+  const centerY = block.y + block.height / 2;
+  spawnSparks( centerX, centerY, neonColor, 12 );
+  spawnScorePopup( centerX, block.y, block.points, neonColor, now );
 }
 
 // Apaga la animación de explosión una vez transcurrida EXPLOSION_DURATION.

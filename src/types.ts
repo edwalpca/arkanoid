@@ -39,6 +39,34 @@ interface Block {
 
 type LevelLayout = ( BlockColor | null )[][];
 
+// Efectos visuales de partículas, estela y popups de puntuación
+interface Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  radius: number;
+  color: string;
+  alpha: number;
+  life: number;
+  maxLife: number;
+}
+
+interface ScorePopup {
+  x: number;
+  y: number;
+  text: string;
+  color: string;
+  alpha: number;
+  created: number;
+  duration: number;
+}
+
+interface BallTrailPoint {
+  x: number;
+  y: number;
+}
+
 // Ambient declarations for assets/spritesheet.js, cargado como <script> plano
 // antes de dist/game.js (ver index.html). No es un módulo TS, solo expone
 // estas globales en tiempo de ejecución.

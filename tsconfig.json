@@ -13,6 +13,7 @@
     "src/constants.ts",
     "src/types.ts",
     "src/audio.ts",
+    "src/effects.ts",
     "src/paddle.ts",
     "src/ball.ts",
     "src/blocks.ts",

@@ -21,9 +21,13 @@ function updatePaddle( paddle: Paddle ): void {
   if ( keysDown.has( 'ArrowLeft' ) ) paddle.x -= paddle.speed;
   if ( keysDown.has( 'ArrowRight' ) ) paddle.x += paddle.speed;
 
-  paddle.x = Math.max( 0, Math.min( CANVAS_WIDTH - paddle.width, paddle.x ) );
+  paddle.x = Math.max( WALL_THICKNESS, Math.min( CANVAS_WIDTH - WALL_THICKNESS - paddle.width, paddle.x ) );
 }
 
 function drawPaddle( ctx: CanvasRenderingContext2D, paddle: Paddle ): void {
+  ctx.save();
+  ctx.shadowColor = '#00f0ff';
+  ctx.shadowBlur = 8;
   drawSprite( ctx, 'paddle', paddle.x, paddle.y, paddle.width, paddle.height );
+  ctx.restore();
 }

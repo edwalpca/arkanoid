@@ -14,6 +14,7 @@ function resetBall( ball: Ball ): void {
   ball.y = fresh.y;
   ball.dx = fresh.dx;
   ball.dy = fresh.dy;
+  resetBallTrail();
 }
 
 function bounceOffPaddle( ball: Ball, paddle: Paddle ): void {
@@ -27,6 +28,7 @@ function bounceOffPaddle( ball: Ball, paddle: Paddle ): void {
   ball.y = paddle.y - ball.radius;
 
   playBounce();
+  spawnSparks( ball.x, ball.y + ball.radius, '#00f0ff', 8 );
 }
 
 // Devuelve true cuando la pelota cruzó el borde inferior del canvas (vida perdida).
@@ -34,20 +36,25 @@ function updateBall( ball: Ball, paddle: Paddle ): boolean {
   ball.x += ball.dx;
   ball.y += ball.dy;
 
-  if ( ball.x - ball.radius <= 0 ) {
-    ball.x = ball.radius;
+  updateBallTrail( ball );
+
+  if ( ball.x - ball.radius <= WALL_THICKNESS ) {
+    ball.x = WALL_THICKNESS + ball.radius;
     ball.dx *= -1;
     playBounce();
-  } else if ( ball.x + ball.radius >= CANVAS_WIDTH ) {
-    ball.x = CANVAS_WIDTH - ball.radius;
+    spawnSparks( ball.x, ball.y, '#00f0ff', 6 );
+  } else if ( ball.x + ball.radius >= CANVAS_WIDTH - WALL_THICKNESS ) {
+    ball.x = CANVAS_WIDTH - WALL_THICKNESS - ball.radius;
     ball.dx *= -1;
     playBounce();
+    spawnSparks( ball.x, ball.y, '#00f0ff', 6 );
   }
 
-  if ( ball.y - ball.radius <= 0 ) {
-    ball.y = ball.radius;
+  if ( ball.y - ball.radius <= WALL_THICKNESS ) {
+    ball.y = WALL_THICKNESS + ball.radius;
     ball.dy *= -1;
     playBounce();
+    spawnSparks( ball.x, ball.y, '#00f0ff', 6 );
   }
 
   const hitsPaddle = ball.dy > 0 &&
@@ -64,5 +71,10 @@ function updateBall( ball: Ball, paddle: Paddle ): boolean {
 }
 
 function drawBall( ctx: CanvasRenderingContext2D, ball: Ball ): void {
+  drawBallTrail( ctx );
+  ctx.save();
+  ctx.shadowColor = '#00f0ff';
+  ctx.shadowBlur = 10;
   drawSprite( ctx, 'ball', ball.x - ball.radius, ball.y - ball.radius, ball.radius * 2, ball.radius * 2 );
+  ctx.restore();
 }

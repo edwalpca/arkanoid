@@ -1,6 +1,7 @@
 "use strict";
 const CANVAS_WIDTH = 480;
 const CANVAS_HEIGHT = 640;
+const WALL_THICKNESS = 12;
 const PADDLE_WIDTH = 162;
 const PADDLE_HEIGHT = 14;
 const PADDLE_SPEED = 7;
@@ -14,13 +15,10 @@ const BLOCK_ROWS_TOP_MARGIN = 90;
 const BLOCK_COLS = 12;
 const LIVES_START = 3;
 const TOTAL_LEVELS = 3;
-const HUD_MARGIN = 12;
-const HUD_PADDING_X = 16;
-const HUD_PADDING_Y = 10;
-const HUD_FIELD_GAP = 24;
-const HUD_BOX_RADIUS = 10;
-const HUD_BOX_FILL = 'rgba(0, 0, 0, 0.55)';
-const HUD_BOX_BORDER = 'rgba(226, 232, 240, 0.35)';
+const HUD_MARGIN = 16;
+const HUD_BOX_FILL = 'rgba(6, 8, 20, 0.75)';
+const HUD_BOX_BORDER = 'rgba(0, 240, 255, 0.4)';
+const HUD_BOX_RADIUS = 8;
 const POINTS_BY_COLOR = {
     gray: 1,
     red: 2,
@@ -30,6 +28,19 @@ const POINTS_BY_COLOR = {
     hotpink: 6,
     green: 7,
 };
+const NEON_COLORS = {
+    red: '#ff0055',
+    yellow: '#ffe600',
+    cyan: '#00f0ff',
+    magenta: '#ff00ea',
+    hotpink: '#ff4db8',
+    green: '#00ff66',
+    gray: '#94a3b8',
+};
+const BALL_TRAIL_LENGTH = 8;
+const SPARK_PARTICLE_COUNT = 10;
+const SPARK_DURATION = 350;
+const SCORE_POPUP_DURATION = 700;
 const bounceSound = new Audio('assets/sounds/ball-bounce.mp3');
 const breakSound = new Audio('assets/sounds/break-sound.mp3');
 function playBounce() {
@@ -39,6 +50,116 @@ function playBounce() {
 function playBreak() {
     breakSound.currentTime = 0;
     breakSound.play().catch(() => { });
+}
+const ballTrail = [];
+let particles = [];
+let scorePopups = [];
+function resetBallTrail() {
+    ballTrail.length = 0;
+}
+function updateBallTrail(ball) {
+    ballTrail.push({ x: ball.x, y: ball.y });
+    if (ballTrail.length > BALL_TRAIL_LENGTH) {
+        ballTrail.shift();
+    }
+}
+function drawBallTrail(ctx) {
+    for (let i = 0; i < ballTrail.length; i++) {
+        const pt = ballTrail[i];
+        const progress = (i + 1) / (ballTrail.length + 1);
+        const alpha = progress * 0.45;
+        const radius = BALL_RADIUS * (0.3 + 0.65 * progress);
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(0, 240, 255, ${alpha})`;
+        ctx.shadowColor = '#00f0ff';
+        ctx.shadowBlur = 8;
+        ctx.fill();
+        ctx.restore();
+    }
+}
+function spawnSparks(x, y, color, count = SPARK_PARTICLE_COUNT) {
+    for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 1.2 + Math.random() * 3.5;
+        particles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            radius: 1.5 + Math.random() * 2,
+            color,
+            alpha: 1,
+            life: 0,
+            maxLife: SPARK_DURATION * (0.7 + Math.random() * 0.6),
+        });
+    }
+}
+function updateParticles(deltaMs) {
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.life += deltaMs;
+        if (p.life >= p.maxLife) {
+            particles.splice(i, 1);
+            continue;
+        }
+        p.x += p.vx;
+        p.y += p.vy;
+        p.alpha = Math.max(0, 1 - p.life / p.maxLife);
+    }
+}
+function drawParticles(ctx) {
+    ctx.save();
+    for (const p of particles) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.alpha;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 6;
+        ctx.fill();
+    }
+    ctx.restore();
+}
+function spawnScorePopup(x, y, points, color, now) {
+    scorePopups.push({
+        x,
+        y,
+        text: `+${points}`,
+        color,
+        alpha: 1,
+        created: now,
+        duration: SCORE_POPUP_DURATION,
+    });
+}
+function updateScorePopups(now) {
+    for (let i = scorePopups.length - 1; i >= 0; i--) {
+        const sp = scorePopups[i];
+        const elapsed = now - sp.created;
+        if (elapsed >= sp.duration) {
+            scorePopups.splice(i, 1);
+            continue;
+        }
+        sp.alpha = Math.max(0, 1 - elapsed / sp.duration);
+    }
+}
+function drawScorePopups(ctx, now) {
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'bold 15px Orbitron, sans-serif';
+    for (const sp of scorePopups) {
+        const elapsed = now - sp.created;
+        const progress = Math.min(1, elapsed / sp.duration);
+        const floatY = sp.y - progress * 24;
+        ctx.globalAlpha = sp.alpha;
+        ctx.fillStyle = sp.color;
+        ctx.shadowColor = sp.color;
+        ctx.shadowBlur = 8;
+        ctx.fillText(sp.text, sp.x, floatY);
+    }
+    ctx.restore();
 }
 const keysDown = new Set();
 function initKeyboardInput() {
@@ -59,10 +180,14 @@ function updatePaddle(paddle) {
         paddle.x -= paddle.speed;
     if (keysDown.has('ArrowRight'))
         paddle.x += paddle.speed;
-    paddle.x = Math.max(0, Math.min(CANVAS_WIDTH - paddle.width, paddle.x));
+    paddle.x = Math.max(WALL_THICKNESS, Math.min(CANVAS_WIDTH - WALL_THICKNESS - paddle.width, paddle.x));
 }
 function drawPaddle(ctx, paddle) {
+    ctx.save();
+    ctx.shadowColor = '#00f0ff';
+    ctx.shadowBlur = 8;
     drawSprite(ctx, 'paddle', paddle.x, paddle.y, paddle.width, paddle.height);
+    ctx.restore();
 }
 function createBall() {
     return {
@@ -79,6 +204,7 @@ function resetBall(ball) {
     ball.y = fresh.y;
     ball.dx = fresh.dx;
     ball.dy = fresh.dy;
+    resetBallTrail();
 }
 function bounceOffPaddle(ball, paddle) {
     const hitPos = (ball.x - paddle.x) / paddle.width;
@@ -89,24 +215,29 @@ function bounceOffPaddle(ball, paddle) {
     ball.dy = -Math.abs(speed * Math.cos(angle));
     ball.y = paddle.y - ball.radius;
     playBounce();
+    spawnSparks(ball.x, ball.y + ball.radius, '#00f0ff', 8);
 }
 function updateBall(ball, paddle) {
     ball.x += ball.dx;
     ball.y += ball.dy;
-    if (ball.x - ball.radius <= 0) {
-        ball.x = ball.radius;
+    updateBallTrail(ball);
+    if (ball.x - ball.radius <= WALL_THICKNESS) {
+        ball.x = WALL_THICKNESS + ball.radius;
         ball.dx *= -1;
         playBounce();
+        spawnSparks(ball.x, ball.y, '#00f0ff', 6);
     }
-    else if (ball.x + ball.radius >= CANVAS_WIDTH) {
-        ball.x = CANVAS_WIDTH - ball.radius;
+    else if (ball.x + ball.radius >= CANVAS_WIDTH - WALL_THICKNESS) {
+        ball.x = CANVAS_WIDTH - WALL_THICKNESS - ball.radius;
         ball.dx *= -1;
         playBounce();
+        spawnSparks(ball.x, ball.y, '#00f0ff', 6);
     }
-    if (ball.y - ball.radius <= 0) {
-        ball.y = ball.radius;
+    if (ball.y - ball.radius <= WALL_THICKNESS) {
+        ball.y = WALL_THICKNESS + ball.radius;
         ball.dy *= -1;
         playBounce();
+        spawnSparks(ball.x, ball.y, '#00f0ff', 6);
     }
     const hitsPaddle = ball.dy > 0 &&
         ball.y + ball.radius >= paddle.y &&
@@ -119,7 +250,12 @@ function updateBall(ball, paddle) {
     return ball.y - ball.radius > CANVAS_HEIGHT;
 }
 function drawBall(ctx, ball) {
+    drawBallTrail(ctx);
+    ctx.save();
+    ctx.shadowColor = '#00f0ff';
+    ctx.shadowBlur = 10;
     drawSprite(ctx, 'ball', ball.x - ball.radius, ball.y - ball.radius, ball.radius * 2, ball.radius * 2);
+    ctx.restore();
 }
 function buildBlocks(layout) {
     const blocks = [];
@@ -148,6 +284,11 @@ function breakBlock(block, now) {
     block.exploding = true;
     block.explosionStart = now;
     playBreak();
+    const neonColor = NEON_COLORS[block.color] || '#00f0ff';
+    const centerX = block.x + block.width / 2;
+    const centerY = block.y + block.height / 2;
+    spawnSparks(centerX, centerY, neonColor, 12);
+    spawnScorePopup(centerX, block.y, block.points, neonColor, now);
 }
 function updateExplosions(blocks, now) {
     for (const block of blocks) {
@@ -236,10 +377,14 @@ const state = {
 let paddle = createPaddle();
 let ball = createBall();
 let blocks = buildBlocks(LEVELS[0]);
+let lastFrameTime = performance.now();
 function resetLevel(levelIndex) {
     paddle = createPaddle();
     ball = createBall();
     blocks = buildBlocks(LEVELS[levelIndex]);
+    resetBallTrail();
+    particles.length = 0;
+    scorePopups.length = 0;
 }
 function isLevelCleared() {
     return blocks.every((b) => !b.alive && !b.exploding);
@@ -247,6 +392,7 @@ function isLevelCleared() {
 function advanceLevel() {
     if (state.level >= TOTAL_LEVELS) {
         state.screen = 'win';
+        spawnSparks(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, '#00ff66', 30);
         return;
     }
     state.level += 1;
@@ -286,7 +432,9 @@ function initGameInput() {
     });
     canvas.addEventListener('click', handleConfirmAction);
 }
-function updateGame(now) {
+function updateGame(now, deltaMs) {
+    updateParticles(deltaMs);
+    updateScorePopups(now);
     if (state.screen !== 'playing')
         return;
     updatePaddle(paddle);
@@ -298,6 +446,7 @@ function updateGame(now) {
             return;
         }
         ball = createBall();
+        resetBallTrail();
     }
     const hitBlock = findHitBlock(ball, blocks);
     if (hitBlock) {
@@ -319,78 +468,283 @@ function drawRoundedRect(x, y, w, h, radius) {
     ctx.arcTo(x, y, x + w, y, radius);
     ctx.closePath();
 }
-function drawHUD() {
-    ctx.font = '16px sans-serif';
-    const fields = [
-        `Score: ${state.score}`,
-        `Vidas: ${state.lives}`,
-        `Nivel: ${state.level}`,
-    ];
-    const fieldWidths = fields.map((text) => ctx.measureText(text).width);
-    const fieldsWidth = fieldWidths.reduce((sum, w) => sum + w, 0) + HUD_FIELD_GAP * (fields.length - 1);
-    const lineHeight = 20;
+function drawNeonBackground(ctx) {
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
+    bgGrad.addColorStop(0, '#050713');
+    bgGrad.addColorStop(0.5, '#080c1e');
+    bgGrad.addColorStop(1, '#0e1227');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(0, 240, 255, 0.035)';
+    ctx.lineWidth = 1;
+    const step = 32;
+    for (let x = WALL_THICKNESS; x < CANVAS_WIDTH - WALL_THICKNESS; x += step) {
+        ctx.beginPath();
+        ctx.moveTo(x, WALL_THICKNESS);
+        ctx.lineTo(x, CANVAS_HEIGHT);
+        ctx.stroke();
+    }
+    for (let y = WALL_THICKNESS; y < CANVAS_HEIGHT; y += step) {
+        ctx.beginPath();
+        ctx.moveTo(WALL_THICKNESS, y);
+        ctx.lineTo(CANVAS_WIDTH - WALL_THICKNESS, y);
+        ctx.stroke();
+    }
+    ctx.restore();
+}
+function drawNeonWalls(ctx) {
+    ctx.save();
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, WALL_THICKNESS, CANVAS_HEIGHT);
+    ctx.fillRect(CANVAS_WIDTH - WALL_THICKNESS, 0, WALL_THICKNESS, CANVAS_HEIGHT);
+    ctx.fillRect(0, 0, CANVAS_WIDTH, WALL_THICKNESS);
+    ctx.strokeStyle = '#00f0ff';
+    ctx.shadowColor = '#00f0ff';
+    ctx.shadowBlur = 8;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(WALL_THICKNESS, CANVAS_HEIGHT);
+    ctx.lineTo(WALL_THICKNESS, WALL_THICKNESS);
+    ctx.lineTo(CANVAS_WIDTH - WALL_THICKNESS, WALL_THICKNESS);
+    ctx.lineTo(CANVAS_WIDTH - WALL_THICKNESS, CANVAS_HEIGHT);
+    ctx.stroke();
+    ctx.strokeStyle = '#ff00ea';
+    ctx.shadowColor = '#ff00ea';
+    ctx.shadowBlur = 6;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(2, 2, WALL_THICKNESS - 4, WALL_THICKNESS - 4);
+    ctx.strokeRect(CANVAS_WIDTH - WALL_THICKNESS + 2, 2, WALL_THICKNESS - 4, WALL_THICKNESS - 4);
+    ctx.restore();
+}
+function drawHUD(now) {
+    ctx.save();
+    ctx.font = 'bold 11px Orbitron, monospace, sans-serif';
+    const scoreText = `SCORE ${String(state.score).padStart(5, '0')}`;
+    const levelText = `NIVEL ${state.level}`;
+    const livesLabel = 'VIDAS:';
+    const scoreWidth = ctx.measureText(scoreText).width;
+    const levelWidth = ctx.measureText(levelText).width;
+    const livesLabelWidth = ctx.measureText(livesLabel).width;
+    const miniPaddleWidth = 14;
+    const miniPaddleHeight = 5;
+    const miniPaddleGap = 4;
+    const livesIconsWidth = state.lives * (miniPaddleWidth + miniPaddleGap);
+    const sectionGap = 20;
+    const totalContentWidth = scoreWidth + sectionGap + levelWidth + sectionGap + livesLabelWidth + 6 + livesIconsWidth;
     const boxX = HUD_MARGIN;
-    const boxY = HUD_MARGIN;
-    const boxWidth = fieldsWidth + HUD_PADDING_X * 2;
-    const boxHeight = lineHeight + HUD_PADDING_Y * 2;
+    const boxY = WALL_THICKNESS + 6;
+    const paddingX = 14;
+    const boxWidth = totalContentWidth + paddingX * 2;
+    const boxHeight = 28;
     drawRoundedRect(boxX, boxY, boxWidth, boxHeight, HUD_BOX_RADIUS);
     ctx.fillStyle = HUD_BOX_FILL;
     ctx.fill();
     ctx.strokeStyle = HUD_BOX_BORDER;
     ctx.lineWidth = 1;
+    ctx.shadowColor = '#00f0ff';
+    ctx.shadowBlur = 6;
     ctx.stroke();
-    ctx.fillStyle = '#e2e8f0';
+    ctx.shadowBlur = 0;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    let textX = boxX + HUD_PADDING_X;
-    const textY = boxY + boxHeight / 2;
-    fields.forEach((text, i) => {
-        ctx.fillText(text, textX, textY);
-        textX += fieldWidths[i] + HUD_FIELD_GAP;
-    });
+    const centerY = boxY + boxHeight / 2;
+    let currentX = boxX + paddingX;
+    ctx.fillStyle = '#00f0ff';
+    ctx.fillText(scoreText, currentX, centerY);
+    currentX += scoreWidth + sectionGap;
+    ctx.fillStyle = '#ffe600';
+    ctx.fillText(levelText, currentX, centerY);
+    currentX += levelWidth + sectionGap;
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText(livesLabel, currentX, centerY);
+    currentX += livesLabelWidth + 6;
+    ctx.fillStyle = '#ff00ea';
+    ctx.shadowColor = '#ff00ea';
+    ctx.shadowBlur = 5;
+    for (let i = 0; i < state.lives; i++) {
+        drawRoundedRect(currentX, centerY - miniPaddleHeight / 2, miniPaddleWidth, miniPaddleHeight, 2);
+        ctx.fill();
+        currentX += miniPaddleWidth + miniPaddleGap;
+    }
+    ctx.restore();
 }
-function drawOverlay() {
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+function drawOverlay(color = 'rgba(5, 7, 18, 0.78)') {
+    ctx.save();
+    ctx.fillStyle = color;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    ctx.restore();
 }
-function drawMessageScreen(title, subtitles) {
-    ctx.fillStyle = '#e2e8f0';
+function drawStartScreen(now) {
+    drawOverlay('rgba(5, 7, 18, 0.85)');
+    ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = 'bold 32px sans-serif';
-    ctx.fillText(title, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 20);
-    ctx.font = '16px sans-serif';
-    subtitles.forEach((line, i) => {
-        ctx.fillText(line, CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 + 20 + i * 24);
-    });
+    ctx.font = '900 36px Orbitron, sans-serif';
+    ctx.shadowColor = '#00f0ff';
+    ctx.shadowBlur = 18;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('ARKANOID', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 110);
+    ctx.font = 'bold 10px Orbitron, monospace, sans-serif';
+    ctx.shadowColor = '#ff00ea';
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = '#ff00ea';
+    ctx.fillText('— CYBERPUNK NEON EDITION —', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 75);
+    const cardW = 340;
+    const cardH = 170;
+    const cardX = (CANVAS_WIDTH - cardW) / 2;
+    const cardY = CANVAS_HEIGHT / 2 - 40;
+    drawRoundedRect(cardX, cardY, cardW, cardH, 12);
+    ctx.fillStyle = 'rgba(10, 15, 32, 0.85)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0, 240, 255, 0.4)';
+    ctx.lineWidth = 1;
+    ctx.shadowColor = '#00f0ff';
+    ctx.shadowBlur = 10;
+    ctx.stroke();
+    const pulse = 0.5 + 0.5 * Math.sin(now / 200);
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = `rgba(0, 240, 255, ${pulse})`;
+    ctx.fillStyle = `rgba(0, 240, 255, ${pulse})`;
+    ctx.font = 'bold 13px Orbitron, monospace, sans-serif';
+    ctx.fillText('▶ PRESIONA ENTER PARA JUGAR ◀', CANVAS_WIDTH / 2, cardY + 40);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '11px Orbitron, sans-serif';
+    ctx.fillText('( o haz click en la pantalla )', CANVAS_WIDTH / 2, cardY + 68);
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.2)';
+    ctx.beginPath();
+    ctx.moveTo(cardX + 30, cardY + 95);
+    ctx.lineTo(cardX + cardW - 30, cardY + 95);
+    ctx.stroke();
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = '11px Orbitron, sans-serif';
+    ctx.fillText('Flechas [ ← / → ] :  Mover la pala', CANVAS_WIDTH / 2, cardY + 120);
+    ctx.fillText('Tecla [ P ] :  Pausar partida', CANVAS_WIDTH / 2, cardY + 144);
+    ctx.restore();
+}
+function drawPauseScreen() {
+    drawOverlay('rgba(5, 7, 20, 0.8)');
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const cardW = 280;
+    const cardH = 130;
+    const cardX = (CANVAS_WIDTH - cardW) / 2;
+    const cardY = (CANVAS_HEIGHT - cardH) / 2;
+    drawRoundedRect(cardX, cardY, cardW, cardH, 12);
+    ctx.fillStyle = 'rgba(12, 17, 36, 0.9)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 230, 0, 0.5)';
+    ctx.lineWidth = 1;
+    ctx.shadowColor = '#ffe600';
+    ctx.shadowBlur = 12;
+    ctx.stroke();
+    ctx.font = '900 28px Orbitron, sans-serif';
+    ctx.fillStyle = '#ffe600';
+    ctx.fillText('PAUSA', CANVAS_WIDTH / 2, cardY + 45);
+    ctx.shadowBlur = 0;
+    ctx.font = '12px Orbitron, sans-serif';
+    ctx.fillStyle = '#e2e8f0';
+    ctx.fillText('Presiona P para continuar', CANVAS_WIDTH / 2, cardY + 90);
+    ctx.restore();
+}
+function drawGameOverScreen(now) {
+    drawOverlay('rgba(20, 4, 12, 0.85)');
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '900 34px Orbitron, sans-serif';
+    ctx.shadowColor = '#ff0055';
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = '#ff0055';
+    ctx.fillText('GAME OVER', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 90);
+    const cardW = 300;
+    const cardH = 150;
+    const cardX = (CANVAS_WIDTH - cardW) / 2;
+    const cardY = CANVAS_HEIGHT / 2 - 40;
+    drawRoundedRect(cardX, cardY, cardW, cardH, 12);
+    ctx.fillStyle = 'rgba(20, 10, 20, 0.9)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 0, 85, 0.4)';
+    ctx.lineWidth = 1;
+    ctx.shadowBlur = 10;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.font = '13px Orbitron, sans-serif';
+    ctx.fillStyle = '#e2e8f0';
+    ctx.fillText(`Puntaje final: ${state.score}`, CANVAS_WIDTH / 2, cardY + 40);
+    ctx.fillText(`Nivel alcanzado: ${state.level}`, CANVAS_WIDTH / 2, cardY + 70);
+    const pulse = 0.5 + 0.5 * Math.sin(now / 200);
+    ctx.fillStyle = `rgba(255, 0, 85, ${pulse})`;
+    ctx.font = 'bold 12px Orbitron, monospace, sans-serif';
+    ctx.fillText('▶ ENTER O CLICK PARA REINICIAR', CANVAS_WIDTH / 2, cardY + 115);
+    ctx.restore();
+}
+function drawWinScreen(now) {
+    drawOverlay('rgba(4, 20, 14, 0.85)');
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '900 34px Orbitron, sans-serif';
+    ctx.shadowColor = '#00ff66';
+    ctx.shadowBlur = 22;
+    ctx.fillStyle = '#00ff66';
+    ctx.fillText('¡VICTORIA!', CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 90);
+    const cardW = 320;
+    const cardH = 160;
+    const cardX = (CANVAS_WIDTH - cardW) / 2;
+    const cardY = CANVAS_HEIGHT / 2 - 40;
+    drawRoundedRect(cardX, cardY, cardW, cardH, 12);
+    ctx.fillStyle = 'rgba(8, 24, 18, 0.9)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0, 255, 102, 0.45)';
+    ctx.lineWidth = 1;
+    ctx.shadowBlur = 10;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.font = 'bold 14px Orbitron, sans-serif';
+    ctx.fillStyle = '#ffe600';
+    ctx.fillText('¡MISIÓN CUMPLIDA!', CANVAS_WIDTH / 2, cardY + 38);
+    ctx.font = '13px Orbitron, sans-serif';
+    ctx.fillStyle = '#e2e8f0';
+    ctx.fillText(`Puntaje final: ${state.score}`, CANVAS_WIDTH / 2, cardY + 74);
+    const pulse = 0.5 + 0.5 * Math.sin(now / 200);
+    ctx.fillStyle = `rgba(0, 255, 102, ${pulse})`;
+    ctx.font = 'bold 12px Orbitron, monospace, sans-serif';
+    ctx.fillText('▶ ENTER O CLICK PARA REINICIAR', CANVAS_WIDTH / 2, cardY + 120);
+    ctx.restore();
 }
 function renderGame(now) {
-    ctx.fillStyle = '#0b0f1a';
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    drawNeonBackground(ctx);
+    drawNeonWalls(ctx);
     if (state.screen === 'playing' || state.screen === 'paused') {
         drawBlocks(ctx, blocks, now);
+        drawParticles(ctx);
+        drawScorePopups(ctx, now);
         drawPaddle(ctx, paddle);
         drawBall(ctx, ball);
-        drawHUD();
+        drawHUD(now);
     }
     if (state.screen === 'start') {
-        drawMessageScreen('ARKANOID', ['Flechas: mover la pala', 'ENTER o click: empezar']);
+        drawStartScreen(now);
     }
     else if (state.screen === 'paused') {
-        drawOverlay();
-        drawMessageScreen('PAUSA', ['Presiona P para continuar']);
+        drawPauseScreen();
     }
     else if (state.screen === 'gameover') {
-        drawOverlay();
-        drawMessageScreen('GAME OVER', [`Score final: ${state.score}`, 'ENTER o click: reiniciar']);
+        drawParticles(ctx);
+        drawGameOverScreen(now);
     }
     else if (state.screen === 'win') {
-        drawOverlay();
-        drawMessageScreen('¡GANASTE!', [`Score final: ${state.score}`, 'ENTER o click: reiniciar']);
+        drawParticles(ctx);
+        drawWinScreen(now);
     }
 }
 function gameLoop(now) {
-    updateGame(now);
+    const deltaMs = Math.min(32, now - lastFrameTime);
+    lastFrameTime = now;
+    updateGame(now, deltaMs);
     renderGame(now);
     requestAnimationFrame(gameLoop);
 }
