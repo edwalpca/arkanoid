@@ -18,11 +18,20 @@ const PADDLE_MAX_BOUNCE_ANGLE = Math.PI / 3; // 60°
 
 const BLOCK_WIDTH = 32;
 const BLOCK_HEIGHT = 16;
-const BLOCK_ROWS_TOP_MARGIN = 60;
+const BLOCK_ROWS_TOP_MARGIN = 90;
 const BLOCK_COLS = 12;
 
 const LIVES_START = 3;
 const TOTAL_LEVELS = 3;
+
+// Estilo del box redondeado que envuelve el HUD (score, vidas, nivel).
+const HUD_MARGIN = 12;
+const HUD_PADDING_X = 16;
+const HUD_PADDING_Y = 10;
+const HUD_FIELD_GAP = 24;
+const HUD_BOX_RADIUS = 10;
+const HUD_BOX_FILL = 'rgba(0, 0, 0, 0.55)';
+const HUD_BOX_BORDER = 'rgba(226, 232, 240, 0.35)';
 
 const POINTS_BY_COLOR: Record<BlockColor, number> = {
   gray: 1,

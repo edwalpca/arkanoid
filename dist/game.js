@@ -10,10 +10,17 @@ const BALL_SPEED = 5;
 const PADDLE_MAX_BOUNCE_ANGLE = Math.PI / 3;
 const BLOCK_WIDTH = 32;
 const BLOCK_HEIGHT = 16;
-const BLOCK_ROWS_TOP_MARGIN = 60;
+const BLOCK_ROWS_TOP_MARGIN = 90;
 const BLOCK_COLS = 12;
 const LIVES_START = 3;
 const TOTAL_LEVELS = 3;
+const HUD_MARGIN = 12;
+const HUD_PADDING_X = 16;
+const HUD_PADDING_Y = 10;
+const HUD_FIELD_GAP = 24;
+const HUD_BOX_RADIUS = 10;
+const HUD_BOX_FILL = 'rgba(0, 0, 0, 0.55)';
+const HUD_BOX_BORDER = 'rgba(226, 232, 240, 0.35)';
 const POINTS_BY_COLOR = {
     gray: 1,
     red: 2,
@@ -303,14 +310,44 @@ function updateGame(now) {
         advanceLevel();
     }
 }
+function drawRoundedRect(x, y, w, h, radius) {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.arcTo(x + w, y, x + w, y + h, radius);
+    ctx.arcTo(x + w, y + h, x, y + h, radius);
+    ctx.arcTo(x, y + h, x, y, radius);
+    ctx.arcTo(x, y, x + w, y, radius);
+    ctx.closePath();
+}
 function drawHUD() {
-    ctx.fillStyle = '#e2e8f0';
     ctx.font = '16px sans-serif';
+    const fields = [
+        `Score: ${state.score}`,
+        `Vidas: ${state.lives}`,
+        `Nivel: ${state.level}`,
+    ];
+    const fieldWidths = fields.map((text) => ctx.measureText(text).width);
+    const fieldsWidth = fieldWidths.reduce((sum, w) => sum + w, 0) + HUD_FIELD_GAP * (fields.length - 1);
+    const lineHeight = 20;
+    const boxX = HUD_MARGIN;
+    const boxY = HUD_MARGIN;
+    const boxWidth = fieldsWidth + HUD_PADDING_X * 2;
+    const boxHeight = lineHeight + HUD_PADDING_Y * 2;
+    drawRoundedRect(boxX, boxY, boxWidth, boxHeight, HUD_BOX_RADIUS);
+    ctx.fillStyle = HUD_BOX_FILL;
+    ctx.fill();
+    ctx.strokeStyle = HUD_BOX_BORDER;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = '#e2e8f0';
     ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    ctx.fillText(`Score: ${state.score}`, 12, 12);
-    ctx.fillText(`Vidas: ${state.lives}`, 12, 32);
-    ctx.fillText(`Nivel: ${state.level}`, 12, 52);
+    ctx.textBaseline = 'middle';
+    let textX = boxX + HUD_PADDING_X;
+    const textY = boxY + boxHeight / 2;
+    fields.forEach((text, i) => {
+        ctx.fillText(text, textX, textY);
+        textX += fieldWidths[i] + HUD_FIELD_GAP;
+    });
 }
 function drawOverlay() {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';

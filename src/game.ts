@@ -96,14 +96,51 @@ function updateGame( now: number ): void {
   }
 }
 
+// Dibuja el subpath de un rectángulo de esquinas redondeadas, a mano con
+// arcos, para no depender de ctx.roundRect() nativo (soporte de navegador).
+function drawRoundedRect( x: number, y: number, w: number, h: number, radius: number ): void {
+  ctx.beginPath();
+  ctx.moveTo( x + radius, y );
+  ctx.arcTo( x + w, y, x + w, y + h, radius );
+  ctx.arcTo( x + w, y + h, x, y + h, radius );
+  ctx.arcTo( x, y + h, x, y, radius );
+  ctx.arcTo( x, y, x + w, y, radius );
+  ctx.closePath();
+}
+
 function drawHUD(): void {
-  ctx.fillStyle = '#e2e8f0';
   ctx.font = '16px sans-serif';
+
+  const fields = [
+    `Score: ${ state.score }`,
+    `Vidas: ${ state.lives }`,
+    `Nivel: ${ state.level }`,
+  ];
+  const fieldWidths = fields.map( ( text ) => ctx.measureText( text ).width );
+  const fieldsWidth = fieldWidths.reduce( ( sum, w ) => sum + w, 0 ) + HUD_FIELD_GAP * ( fields.length - 1 );
+  const lineHeight = 20; // acorde a font size 16px
+
+  const boxX = HUD_MARGIN;
+  const boxY = HUD_MARGIN;
+  const boxWidth = fieldsWidth + HUD_PADDING_X * 2;
+  const boxHeight = lineHeight + HUD_PADDING_Y * 2;
+
+  drawRoundedRect( boxX, boxY, boxWidth, boxHeight, HUD_BOX_RADIUS );
+  ctx.fillStyle = HUD_BOX_FILL;
+  ctx.fill();
+  ctx.strokeStyle = HUD_BOX_BORDER;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.fillStyle = '#e2e8f0';
   ctx.textAlign = 'left';
-  ctx.textBaseline = 'top';
-  ctx.fillText( `Score: ${ state.score }`, 12, 12 );
-  ctx.fillText( `Vidas: ${ state.lives }`, 12, 32 );
-  ctx.fillText( `Nivel: ${ state.level }`, 12, 52 );
+  ctx.textBaseline = 'middle';
+  let textX = boxX + HUD_PADDING_X;
+  const textY = boxY + boxHeight / 2;
+  fields.forEach( ( text, i ) => {
+    ctx.fillText( text, textX, textY );
+    textX += fieldWidths[ i ] + HUD_FIELD_GAP;
+  } );
 }
 
 function drawOverlay(): void {
